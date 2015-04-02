@@ -3,12 +3,11 @@
 
 import math
 from collections import namedtuple
-import Goulib.optim
+from subprocess import call
 
 Point = namedtuple("Point", ['x', 'y'])
 
-def length(point1, point2):
-    return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
+def length(point1, point2): return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
 
 def maketable(points):
     table = [ [] for _ in range(len(points))]
@@ -32,75 +31,56 @@ def solve_it(input_data):
         parts = line.split()
         points.append(Point(float(parts[0]), float(parts[1])))
 
+    # Write par, tsp file
+    f_par = open('LKH.par', 'w')
+    f_par.write('PROBLEM_FILE = LKH.tsp\n')
+    f_par.write('OUTPUT_TOUR_FILE = LKH.out\n')
+    f_par.write('RUNS = 1\n')
+    f_par.write('MOVE_TYPE = 2\n')
+    f_par.write('MAX_CANDIDATES = 2 SYMMETRIC\n')
+    f_par.write('INITIAL_PERIOD = 600\n')
+    f_par.write('MAX_SWAPS = 30\n')
+    f_par.write('MAX_TRIALS = 30\n')
+    f_par.write('INITIAL_TOUR_ALGORITHM = GREEDY\n')
+    f_par.write('MAX_BREADTH = 5\n')
+    #f_par.write('PATCHING_C = 2\n')
+    #f_par.write('PATCHING_A = 1\n')
+    f_par.close()
+
+    f_tsp = open('LKH.tsp', 'w')
+    f_tsp.write('NAME : LKH\n')
+    f_tsp.write('COMMENT : none\n')
+    f_tsp.write('TYPE : TSP\n')
+    f_tsp.write('DIMENSION : ' + str(len(points)) + '\n')
+    f_tsp.write('EDGE_WEIGHT_TYPE : EUC_2D\n')
+    f_tsp.write('NODE_COORD_SECTION\n')
+    for i in range(len(points)):
+        f_tsp.write(str(i+1) +' '+ str(points[i][0]) + ' '+str(points[i][1]) + '\n')
+    f_tsp.write('EOF')
+    f_tsp.close()
+
+    solution = range(0, nodeCount)
+    # LKHlib
+    #call('./LKH-2.0.7/LKH ./LKH.par &> /dev/null', shell = True)
+    call('./LKH-2.0.7/LKH ./LKH.par ', shell = True)
+
+
+    outfile = open('./LKH.out', 'r')
+    outdata = ''.join(outfile.readlines())
+    outfile.close()
+
+    outlines = outdata.split('\n')
+    tmp = []
+    for i in range(6, 6+len(points)):
+        tmp.append(int(outlines[i]))
+        
+    # print 'tmp: ', tmp
+    solution = [ i-1 for i in tmp]
+
     # build a trivial solution
     # visit the nodes in the order they appear in the file
-    solution = range(0, nodeCount)
 
-    def findminedge(lst, point):
-        excludept = [lst[lst.index(point)-1], point, lst[(lst.index(point)+1)%nodeCount]]
-        searchlist = [i for i in lst if i not in excludept]
-        return min(searchlist, key = lambda p: length(points[p], points[point]))
-
-    def r2opt(solution):
-        for i in range(nodeCount):
-            for j in range(i):
-                tmp = solution
-                oldlen = length(points[solution[j-1]],points[solution[j]])+length(points[solution[i]], points[solution[(i+1)%nodeCount]])
-                newlen = length(points[solution[j-1]],points[solution[i]])+length(points[solution[j]], points[solution[(i+1)%nodeCount]])
-                if newlen < oldlen:
-                    solution[j:i+1] = [ele for ele in reversed(tmp[j:i+1])]
-
-    def twoopt(lst, startpt):
-        lst[:] = lst[lst.index(startpt):] + lst[0:lst.index(startpt)]
-        startpt = lst[0]
-        nextpoint = findminedge(lst, lst[1])
-        if (length(points[lst[0]], points[lst[1]]) <= 
-            length(points[lst[lst.index(nextpoint)]], points[lst[1]])):
-            return False
-        beforenearest_idx = (lst.index(nextpoint) - 1) % nodeCount
-        revstarpt_idx = (lst.index(startpt) + 1) %nodeCount
-        lst[revstarpt_idx:(beforenearest_idx+1)] = reversed(lst[revstarpt_idx:(beforenearest_idx+1)])
-        return True
-
-    def kopt(lst, startpt):
-        obj = length(points[solution[-1]], points[solution[0]])
-        for index in range(0, nodeCount-1):
-            obj += length(points[solution[index]], points[solution[index+1]])
-        tmpvalue = obj
-        while twoopt(lst, startpt):
-            obj = length(points[solution[-1]], points[solution[0]])
-            for index in range(0, nodeCount-1):
-                obj += length(points[solution[index]], points[solution[index+1]])
-            if obj >= tmpvalue:
-                break
-            tmpvalue = obj
     
-
-    #print points[0], points[1]
-    #print length(points[0], points[1])
-    #iters, score, best = Goulib.optim.tsp(points, length, max_iterations=100000)
-    _, score1, best1 = Goulib.optim.tsp(points, length, max_iterations=3000, start_temp=10, alpha=0.9)
-    _, score2, best2 = Goulib.optim.tsp(points, length, max_iterations=3000)
-    #print iters, score, best
-    if score1 > score2:
-        solution = best1
-    else:
-        solution = best2
-
-    #for i in range(500):
-    #    r2opt(solution)
-            
-    #for i in range(nodeCount):
-    #    r2opt(solution)
-    #    tmp = [k for k in solution]
-    #    kopt(tmp, i)
-    #    obj = length(points[tmp[-1]], points[tmp[0]])
-    #    for index in range(0, nodeCount-1):
-    #        obj += length(points[tmp[index]], points[tmp[index+1]])
-    #    firstvalue = obj
-    #    if obj < firstvalue:
-    #        solution = tmp
-    #        firstvalue = obj
 
      # calculate the length of the tour
     obj = length(points[solution[-1]], points[solution[0]])

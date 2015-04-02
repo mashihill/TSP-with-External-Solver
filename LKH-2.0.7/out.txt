@@ -1,0 +1,14 @@
+NAME : guess.58.tour
+COMMENT : Length = 58
+COMMENT : Found by LKH [Keld Helsgaun] Fri Apr  3 00:31:41 2015
+TYPE : TOUR
+DIMENSION : 6
+TOUR_SECTION
+1
+2
+4
+3
+6
+5
+-1
+EOF
